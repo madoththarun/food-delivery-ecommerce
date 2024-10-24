@@ -5,15 +5,14 @@ import { StoreContext } from "../../context/StoreContext";
 import "./LoginPopup.css";
 
 const LoginPopup = ({ setShowLogin }) => {
-  const { url, setToken } = useContext(StoreContext);
-
+  const { setToken } = useContext(StoreContext);
   const [currState, setCurrState] = useState("Login");
-
   const [data, setData] = useState({
     name: "",
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
 
   const onChangeHandler = (event) => {
     const name = event.target.name;
@@ -23,21 +22,40 @@ const LoginPopup = ({ setShowLogin }) => {
 
   const onLogin = async (event) => {
     event.preventDefault();
-    let newUrl = url;
+    let newUrl = "http://localhost:4000/api/user";
+
     if (currState === "Login") {
-      newUrl += "/api/user/login";
+      newUrl += "/login";
     } else {
-      newUrl += "/api/user/register";
+      newUrl += "/register";
     }
 
-    const response = await axios.post(newUrl, data);
+    setLoading(true); // Start the loading state
 
-    if (response.data.success) {
-      setToken(response.data.token);
-      localStorage.setItem("token", response.data.token);
-      setShowLogin(false);
-    } else {
-      alert(response.data.message);
+    try {
+      const response = await axios.post(newUrl, data, {
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.data.success) {
+        setToken(response.data.token);
+        localStorage.setItem("token", response.data.token);
+        setShowLogin(false); // Close the login popup
+      } else {
+        alert(response.data.message); // Show error message from backend
+      }
+    } catch (error) {
+      if (error.response) {
+        alert(`Error: ${error.response.data.message || "Server error"}`);
+      } else if (error.request) {
+        alert(
+          "No response from the server. Please check your network or try again later."
+        );
+      } else {
+        alert("Error: Unable to process your request.");
+      }
+    } finally {
+      setLoading(false); // Stop the loading state
     }
   };
 
@@ -47,15 +65,13 @@ const LoginPopup = ({ setShowLogin }) => {
         <div className="login-popup-title">
           <h2>{currState}</h2>
           <img
-            onClick={() => setShowLogin(false)} // Corrected usage here
+            onClick={() => setShowLogin(false)}
             src={assets.cross_icon}
             alt="close"
           />
         </div>
         <div className="login-popup-inputs">
-          {currState === "Login" ? (
-            <></>
-          ) : (
+          {currState === "Sign Up" && (
             <input
               name="name"
               onChange={onChangeHandler}
@@ -82,8 +98,12 @@ const LoginPopup = ({ setShowLogin }) => {
             required
           />
         </div>
-        <button type="submit">
-          {currState === "Sign Up" ? "Create account" : "Login"}
+        <button type="submit" disabled={loading}>
+          {loading
+            ? "Processing..."
+            : currState === "Sign Up"
+            ? "Create account"
+            : "Login"}
         </button>
         <div className="login-popup-condition">
           <input type="checkbox" required />
@@ -96,7 +116,7 @@ const LoginPopup = ({ setShowLogin }) => {
           </p>
         ) : (
           <p>
-            Already have an account?
+            Already have an account?{" "}
             <span onClick={() => setCurrState("Login")}>Login here</span>
           </p>
         )}
